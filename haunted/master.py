@@ -5,7 +5,7 @@ from collections.abc import Iterator
 
 from .engine import KINDS, MAX_CHANGES, MAX_COURAGE, Game, Result, overlap, words
 from .ollama import Ollama, OllamaError
-from .world import LANGUAGES, NAME_LIMIT, TEXT_LIMIT, emoji, text
+from .world import LANGUAGES, NAME_LIMIT, PLAYER, TEXT_LIMIT, emoji, text
 
 RECENT_TURNS = 3
 NO_TARGET = {"", "none", "null", "nothing", "rien", "aucun", "aucune"}
@@ -50,11 +50,12 @@ Kinds of change:
 - move: go to another room. target = room id.
 - take: pick up an object or a clue. target = its id.
 - drop: put down an object the player carries. target = object id.
-- give: give an object to a creature or to the ghost. target = object id, to = creature id or "ghost".
+- give: give, offer or hold out an object to a creature or to the ghost. target = object id, to = creature id or "ghost".
 - use: use an object (light it, wave it, open something with it). target = object id, to = what it is used on (room id, creature id, "ghost") or "".
 - unlock: open a locked room. target = room id.
 - clue: search for something hidden (look under, open, read, dig, rummage). target = id of the clue hidden in this room, or "" if none. Eating, tasting, touching, listening or talking is not searching.
 - courage: amount = -1 when the player does something creepy on purpose (puts a hand in a dark hole, reads a spell, walks into the dark), never for being kind, playing, joking or talking with a creature. +1 when they do something comforting (eat a treat, sing, make friends). Most actions have no courage change.
+- help: the player is stuck, gives up, or asks for help or a hint. target = "".
 
 Rules:
 - List what the player tries, even when it looks impossible. The game engine decides what happens, not you.
@@ -71,6 +72,10 @@ The game engine has already decided what happened this turn. Its facts are the t
 - Tell every change marked DONE, as it happens.
 - A change marked DID NOT HAPPEN did not happen. Tell it in a funny or mysterious way (the door won't budge, the shelf is empty) and, when the facts allow, slip in a small hint. Never mention the engine, rules or points.
 - The player only carries the objects the facts list. Never give them anything, never move them to another room, never open a door, never reveal a clue the facts don't give.
+- A clue is read or looked at where it is found. It never goes in the player's pocket.
+- Creatures stay in their own room. They never follow the player.
+- Never invent doors, passages, tools, repairs or new tasks. When the player arrives in a room or searches it, mention the objects lying there.
+- When a fact gives a hint, slip it into the story through a creature, a whisper or a sign, clearly enough for a child to follow it.
 - Until the facts say the ghost is visible, the ghost only shows itself as cold air, whispers or footsteps.
 - Play the creatures and the ghost with the personality the facts give them.
 
@@ -188,7 +193,7 @@ def clean_changes(value: object) -> list[dict]:
             continue
         change = {"kind": entry["kind"], "target": str(entry.get("target") or "")[:NAME_LIMIT]}
         if change["target"].strip().lower() in NO_TARGET:
-            if entry["kind"] not in ("clue", "courage"):
+            if entry["kind"] not in ("clue", "courage", "help"):
                 continue
             change["target"] = ""
         if entry.get("to"):
@@ -237,7 +242,16 @@ def rules_view(game: Game, action: str) -> str:
     lines.append("Creatures here: " + (", ".join(f"{c.id} = {c.name}" for c in creatures) if creatures else "none"))
     hidden = game.hidden_clue()
     lines.append(f"Clue hidden here: {hidden.id} = {hidden.name}" if hidden else "Clue hidden here: none")
-    lines.append('The ghost (id "ghost") is ' + ("visible here." if game.ghost_visible else "not visible here."))
+    ghost = world.ghost
+    if game.ghost_visible:
+        lines.append(f'The ghost (id "ghost", called {ghost.name}) is visible here.')
+        if game.places[ghost.wants] == PLAYER:
+            lines.append(
+                f"The player carries the {ghost.wants}, the object the ghost lost: offering, showing or holding it out "
+                f'to the ghost, whatever the player calls it, is give target={ghost.wants} to="ghost".'
+            )
+    else:
+        lines.append('The ghost (id "ghost") is not visible here.')
     lines.append("")
     lines.append(f"The player writes: {action}")
     return "\n".join(lines)
@@ -284,6 +298,12 @@ def story_view(game: Game, action: str, results: list[Result]) -> str:
             f"Personality: {ghost.personality} It is afraid of {ghost.fear}. "
             f"It is looking for the {world.item(ghost.wants).name}."
         )
+        if game.places[ghost.wants] == PLAYER:
+            lines.append(
+                f"{ghost.name} sees the {world.item(ghost.wants).name} in the player's hands and knows it at once: "
+                "it is what the ghost lost. The ghost asks for it and holds out a hand. Giving it is all it takes: "
+                "no repair, no tool, no other task."
+            )
     elif game.room == ghost.room:
         lines.append(
             "The ghost haunts this room but stays invisible: only signs of it (cold air, whispers, a moving shadow)."

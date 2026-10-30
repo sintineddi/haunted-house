@@ -5,6 +5,7 @@ from haunted.engine import Game, Result
 from haunted.master import Master, clean_changes, clean_sheet, rules_view, story_view, told
 from haunted.ollama import OllamaError, parse_json, repair_bytes
 from haunted.world import load
+from tests.test_engine import ready_to_win
 
 SAMPLES = Path(__file__).resolve().parent.parent / "worlds"
 
@@ -52,6 +53,15 @@ class MasterTest(unittest.TestCase):
             ],
         )
         self.assertEqual(clean_changes({"kind": "move"}), [])
+
+    def test_clean_changes_keeps_help_without_a_target(self):
+        self.assertEqual(clean_changes([{"kind": "help", "target": "none"}]), [{"kind": "help", "target": ""}])
+
+    def test_the_ghost_asks_for_what_it_lost(self):
+        game = ready_to_win(new_game())
+        self.assertIn('give target=pocket_watch to="ghost"', rules_view(game, "I show him the watch"))
+        self.assertIn("holds out a hand", story_view(game, "I look at him", []))
+        self.assertNotIn('to="ghost"', rules_view(new_game(), "I look around"))
 
     def test_a_turn_applies_only_what_the_engine_accepts(self):
         game = new_game()

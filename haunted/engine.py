@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 from .world import GHOST, PLAYER, Clue, Creature, Item, Room, World, plain, slug
 
 MAX_COURAGE = 3
 MAX_CHANGES = 4
-KINDS = ("move", "take", "drop", "give", "use", "unlock", "clue", "courage")
+HINT_AFTER = 8
+KINDS = ("move", "take", "drop", "give", "use", "unlock", "clue", "courage", "help")
+GHOST_WORDS = {GHOST, "fantome"}
 STOP_WORDS = {
     "a",
     "an",
@@ -85,6 +87,7 @@ class Game:
         self.unlocked: list[str] = []
         self.ghost_seen = False
         self.ending = ""
+        self.quiet_turns = 0
         self.turns: list[dict] = []
 
     @property
@@ -94,6 +97,21 @@ class Game:
 
     def carried(self) -> list[Item]:
         return [item for item in self.world.items if self.places[item.id] == PLAYER]
+
+    def holder(self, item: Item) -> Creature | None:
+        return next((creature for creature in self.world.creatures if creature.id == self.places[item.id]), None)
+
+    def room_of(self, item: Item) -> Room:
+        holder = self.holder(item)
+        return self.world.room(holder.room if holder else self.places[item.id])
+
+    def within_reach(self, item: Item) -> bool:
+        return self.places[item.id] not in (PLAYER, GHOST) and self.room_of(item).id == self.room
+
+    def whereabouts(self, item: Item) -> str:
+        holder = self.holder(item)
+        room = self.room_of(item)
+        return f"with {holder.name}, in the {room.name}" if holder else f"in the {room.name}"
 
     def items_here(self) -> list[Item]:
         return [item for item in self.world.items if self.places[item.id] == self.room]
@@ -109,12 +127,15 @@ class Game:
 
     def play(self, changes: list[dict]) -> list[Result]:
         results: list[Result] = []
+        progress = self.progress()
         courage_changed = False
         for change in changes[:MAX_CHANGES]:
             if self.ending:
                 break
             kind = change.get("kind")
             if kind == "courage" and courage_changed:
+                continue
+            if kind == "help" and any(result.kind == "help" for result in results):
                 continue
             result = self.apply(change)
             if result is None:
@@ -123,7 +144,23 @@ class Game:
             results.append(result)
             self.reveal_ghost(results)
         self.reveal_ghost(results)
+        self.nudge(results, progress)
         return results
+
+    def progress(self) -> int:
+        wanted_carried = self.places[self.world.ghost.wants] == PLAYER
+        return len(self.visited) + len(self.found) + len(self.unlocked) + int(self.ghost_seen) + int(wanted_carried)
+
+    def nudge(self, results: list[Result], progress: int) -> None:
+        if self.ending or self.progress() > progress or any(result.kind == "help" for result in results):
+            self.quiet_turns = 0
+            return
+        self.quiet_turns += 1
+        if self.quiet_turns >= HINT_AFTER:
+            self.quiet_turns = 0
+            results.append(
+                done("help", "", f"The player seems stuck. Slip this hint into the story: {self.hint()}", "stuck")
+            )
 
     def reveal_ghost(self, results: list[Result]) -> None:
         if self.ghost_visible and not self.ghost_seen:
@@ -145,6 +182,7 @@ class Game:
             "unlock": lambda: self.unlock(target),
             "clue": lambda: self.search(target),
             "courage": lambda: self.change_courage(change.get("amount")),
+            "help": lambda: self.help(),
         }
         rule = rules.get(change.get("kind"))
         return rule() if rule else None
@@ -197,14 +235,13 @@ class Game:
         )
 
     def pick_up(self, item: Item) -> Result | None:
-        place = self.places[item.id]
-        if place == PLAYER:
+        if self.places[item.id] == PLAYER:
             return None
-        holder = next((creature for creature in self.world.creatures if creature.id == place), None)
-        if place != self.room and not (holder and holder.room == self.room):
+        if not self.within_reach(item):
             return refused(
                 "take", item.name, "not_here", f"The player looked for the {item.name}, but it is not in this room."
             )
+        holder = self.holder(item)
         self.places[item.id] = PLAYER
         if holder:
             return done("take", item.name, f"{holder.name} gave the {item.name} back to the player.")
@@ -221,42 +258,59 @@ class Game:
         item = self.find(self.world.items, target)
         if item is None or self.places[item.id] != PLAYER:
             return self.not_carried("give", item.name if item else target)
-        ghost = self.world.ghost
-        if slug(to) in (GHOST, slug(ghost.name)):
+        if not self.means_ghost(to):
+            creature = self.find(self.creatures_here(), to) or self.find(self.world.creatures, to)
+            if creature is not None and creature.room == self.room:
+                self.places[item.id] = creature.id
+                return done(
+                    "give", item.name, f"The player gave the {item.name} to {creature.name}, who keeps it for now."
+                )
+            if creature is not None:
+                return refused(
+                    "give",
+                    item.name,
+                    "nobody",
+                    f"The player wanted to give the {item.name} to {creature.name}, who is not in this room.",
+                )
             if not self.ghost_visible:
                 return refused(
                     "give",
                     item.name,
-                    "ghost_hidden",
-                    f"The player held out the {item.name} to the ghost, but no ghost shows itself here. Nobody takes it.",
+                    "nobody",
+                    f"The player wanted to give the {item.name} to '{to}', but nobody by that name is here.",
                 )
-            if item.id != ghost.wants:
-                return refused(
-                    "give",
-                    item.name,
-                    "not_wanted",
-                    f"The player offered the {item.name} to {ghost.name}, but it is not what the ghost is looking for. "
-                    "The player keeps it.",
-                )
-            self.places[item.id] = GHOST
-            self.ending = "won"
-            return done(
-                "give",
-                item.name,
-                f"The player gave the {item.name} to {ghost.name}. It is what the ghost was looking for: "
-                "the mystery is solved and the game is won.",
-                "won",
-            )
-        creature = self.find(self.world.creatures, to)
-        if creature is None or creature.room != self.room:
+        return self.give_ghost(item)
+
+    def means_ghost(self, to: str) -> bool:
+        named = words(to)
+        return bool(named) and named <= words(self.world.ghost.name) | GHOST_WORDS
+
+    def give_ghost(self, item: Item) -> Result:
+        ghost = self.world.ghost
+        if not self.ghost_visible:
             return refused(
                 "give",
                 item.name,
-                "nobody",
-                f"The player wanted to give the {item.name} to '{to}', but nobody by that name is here.",
+                "ghost_hidden",
+                f"The player held out the {item.name} to the ghost, but no ghost shows itself here. Nobody takes it.",
             )
-        self.places[item.id] = creature.id
-        return done("give", item.name, f"The player gave the {item.name} to {creature.name}, who keeps it for now.")
+        if item.id != ghost.wants:
+            return refused(
+                "give",
+                item.name,
+                "not_wanted",
+                f"The player offered the {item.name} to {ghost.name}, but it is not what the ghost is looking for. "
+                "The player keeps it.",
+            )
+        self.places[item.id] = GHOST
+        self.ending = "won"
+        return done(
+            "give",
+            item.name,
+            f"The player gave the {item.name} to {ghost.name}. It is what the ghost was looking for: "
+            "the mystery is solved and the game is won.",
+            "won",
+        )
 
     def use(self, target: str, to: str) -> Result | None:
         item = self.find(self.world.items, target)
@@ -269,14 +323,33 @@ class Game:
             )
         if self.places[item.id] != PLAYER:
             return self.not_carried("use", item.name)
-        room = self.find(self.world.rooms, to)
-        if room is not None and room.locked_by == item.id and self.is_locked(room):
-            self.unlocked.append(room.id)
-            return done(
-                "use", item.name, f"The player used the {item.name}: the door of the {room.name} is now unlocked."
-            )
+        doors = [room for room in self.world.rooms if room.locked_by == item.id]
+        if doors:
+            return self.try_key(item, doors, to)
         on = f" on {to}" if to else ""
         return done("use", item.name, f"The player used the {item.name}{on}.")
+
+    def try_key(self, key: Item, doors: list[Room], to: str) -> Result | None:
+        room = self.find(self.world.rooms, to)
+        if room is None and self.names_something(to):
+            return done("use", key.name, f"The player used the {key.name} on {to}.")
+        if room is not None and room not in doors:
+            return refused(
+                "use",
+                key.name,
+                "no_lock",
+                f"The player tried the {key.name} on the {room.name}, but there is no lock there for it. "
+                f"It opens the {doors[0].name}.",
+            )
+        door = next((door for door in ([room] if room else doors) if self.is_locked(door)), None)
+        if door is None:
+            return None
+        self.unlocked.append(door.id)
+        return done("use", key.name, f"The player used the {key.name}: the door of the {door.name} is now unlocked.")
+
+    def names_something(self, to: str) -> bool:
+        things = [*self.world.creatures, *self.world.items, *self.world.clues]
+        return self.means_ghost(to) or self.find(things, to) is not None
 
     def unlock(self, target: str) -> Result | None:
         room = self.find(self.world.rooms, target)
@@ -295,11 +368,22 @@ class Game:
         return done("unlock", room.name, f"The player unlocked the door of the {room.name} with the {key.name}.")
 
     def search(self, target: str) -> Result | None:
-        clue = self.find(self.world.clues, target)
+        thing = self.find([*self.world.items, *self.world.clues], target)
+        if isinstance(thing, Item) and self.within_reach(thing):
+            found = self.pick_up(thing)
+            return replace(found, note=f"The player searched and found the {thing.name}. {found.note}")
+        clue = thing if isinstance(thing, Clue) else None
         if clue is not None and clue.id in self.found:
             return None
         hidden = self.hidden_clue()
         if clue is None or clue.room != self.room:
+            if hidden is None and isinstance(thing, Item) and self.places[thing.id] != PLAYER:
+                return refused(
+                    "clue",
+                    thing.name,
+                    "not_here",
+                    f"The player looked for the {thing.name}, but it is not in this room.",
+                )
             if hidden is None:
                 return refused(
                     "clue", clue.name if clue else target, "no_clue", "The player searched, but nothing is hidden here."
@@ -331,6 +415,41 @@ class Game:
         if step < 0:
             return done("courage", "-1", "Something gave the player a fright: they lose one point of courage.")
         return done("courage", "+1", "The player feels braver: they win back one point of courage.")
+
+    def help(self) -> Result:
+        return done(
+            "help",
+            "",
+            "The player asks for help. Slip this hint into the story, through a creature, a whisper or a sign: "
+            + self.hint(),
+            "asked",
+        )
+
+    def hint(self) -> str:
+        world = self.world
+        ghost = world.ghost
+        wanted = world.item(ghost.wants)
+        if self.places[wanted.id] != PLAYER:
+            return self.way_to(wanted)
+        if len(self.found) < ghost.shows_after:
+            hidden = [clue for clue in world.clues if clue.id not in self.found]
+            reachable = [clue for clue in hidden if not self.is_locked(world.room(clue.room))]
+            clue = (reachable or hidden)[0]
+            return (
+                f"{ghost.name} only shows itself once more clues are found. "
+                f"One is hidden in the {world.room(clue.room).name}."
+            )
+        if self.room != ghost.room:
+            return f"Bring the {wanted.name} to {ghost.name}, in the {world.room(ghost.room).name}."
+        return f"Give the {wanted.name} to {ghost.name}, who is right here: it is what the ghost lost."
+
+    def way_to(self, item: Item) -> str:
+        hint = f"The {item.name} is {self.whereabouts(item)}."
+        room = self.room_of(item)
+        if not self.is_locked(room) or self.places[room.locked_by] == PLAYER:
+            return hint
+        key = self.world.item(room.locked_by)
+        return f"{hint} The {room.name} is locked: it opens with the {key.name}, which is {self.whereabouts(key)}."
 
     def not_carried(self, kind: str, name: str) -> Result:
         return refused(kind, name, "not_carried", f"The player wanted to {kind} the {name}, but they do not have it.")
@@ -406,6 +525,7 @@ class Game:
             "unlocked": self.unlocked,
             "ghost_seen": self.ghost_seen,
             "ending": self.ending,
+            "quiet_turns": self.quiet_turns,
             "world": self.world.as_dict(),
             "turns": self.turns,
         }
@@ -421,5 +541,6 @@ class Game:
         game.unlocked = data["unlocked"]
         game.ghost_seen = data["ghost_seen"]
         game.ending = data["ending"]
+        game.quiet_turns = data.get("quiet_turns", 0)
         game.turns = data["turns"]
         return game

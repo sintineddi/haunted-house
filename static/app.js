@@ -37,6 +37,8 @@ const TEXT = {
     not_wanted: "not what it wants",
     nobody: "nobody here",
     creature: "won't fit",
+    no_lock: "no lock here",
+    help_rule: "a hint",
     design_title: "Design your haunted house",
     house: "The house",
     house_name: "What is the house called?",
@@ -124,6 +126,8 @@ const TEXT = {
     not_wanted: "ce n'est pas ce qu'il cherche",
     nobody: "personne ici",
     creature: "ne rentre pas",
+    no_lock: "pas de serrure ici",
+    help_rule: "un indice",
     design_title: "Invente ta maison hantée",
     house: "La maison",
     house_name: "Comment s'appelle la maison ?",
@@ -279,6 +283,7 @@ function ruleLabel(result) {
   const mark = result.accepted ? "✓" : "✗";
   if (result.kind === "ghost") return `👻 ${say("ghost")}`;
   if (result.kind === "courage") return `${mark} 💜 ${result.name}`;
+  if (result.kind === "help") return `💡 ${say("help_rule")}`;
   const verb = say(RULE_WORDS[result.kind] || result.kind);
   const why = result.accepted || !result.reason ? "" : ` · ${say(result.reason)}`;
   return `${mark} ${verb} ${result.name}${why}`;
