@@ -10,7 +10,7 @@ MAX_CHANGES = 4
 HINT_AFTER = 8
 KINDS = ("move", "take", "drop", "give", "use", "unlock", "clue", "courage", "help")
 GHOST_WORDS = {GHOST, "fantome"}
-DOOR_WORDS = {"door", "lock", "keyhole", "trapdoor", "porte", "serrure", "trappe"}
+DOOR_WORDS = {"door", "doors", "lock", "locks", "keyhole", "trapdoor", "porte", "portes", "serrure", "trappe"}
 STOP_WORDS = {
     "a",
     "an",
@@ -285,6 +285,12 @@ class Game:
             return creature
         return self.find(self.creatures_here(), to) or self.find(self.world.creatures, to)
 
+    def means_door(self, to: str) -> bool:
+        things = [*self.world.creatures, *self.world.items, *self.world.clues]
+        if self.exact(things, to) is not None or self.means_ghost(to):
+            return False
+        return bool(words(to) & DOOR_WORDS)
+
     def means_ghost(self, to: str) -> bool:
         named = words(to)
         return bool(named) and named <= words(self.world.ghost.name) | GHOST_WORDS
@@ -335,7 +341,7 @@ class Game:
 
     def try_key(self, key: Item, doors: list[Room], to: str) -> Result | None:
         room = self.find(self.world.rooms, to)
-        if room is None and to and not overlap(words(to), DOOR_WORDS):
+        if room is None and to and not self.means_door(to):
             return done("use", key.name, f"The player used the {key.name} on {to}.")
         if room is not None and room not in doors:
             return refused(

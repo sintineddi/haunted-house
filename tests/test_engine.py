@@ -191,6 +191,17 @@ class EngineTest(unittest.TestCase):
         game.play([change("use", "rusty_key", to="the lock")])
         self.assertEqual(game.unlocked, ["cellar"])
 
+    def test_a_key_used_on_a_thing_named_like_a_door_opens_nothing(self):
+        game = game_with(
+            items=[{"name": "locket", "room": "kitchen"}], creatures=[{"name": "Door Mouse", "room": "kitchen"}]
+        )
+        game.play([change("move", "kitchen"), change("take", "rusty_key")])
+        for target in ("locket", "the locket", "door_mouse"):
+            game.play([change("use", "rusty_key", to=target)])
+        self.assertEqual(game.unlocked, [])
+        game.play([change("use", "rusty_key", to="the keyhole")])
+        self.assertEqual(game.unlocked, ["cellar"])
+
     def test_help_points_to_the_next_step(self):
         game = new_game()
         self.assertIn("it opens with the rusty key, which is in the Kitchen", game.hint())
