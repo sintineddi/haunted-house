@@ -1,14 +1,22 @@
+import json
 import unittest
 from pathlib import Path
 
 from haunted.engine import MAX_CHANGES, Game, same_word
-from haunted.world import load
+from haunted.world import load, parse
 
 SAMPLES = Path(__file__).resolve().parent.parent / "worlds"
 
 
 def new_game(language: str = "en") -> Game:
     return Game(load(SAMPLES / f"sample-{language}.json"))
+
+
+def game_with(**extra: list) -> Game:
+    data = json.loads((SAMPLES / "sample-en.json").read_text(encoding="utf-8"))
+    for key, things in extra.items():
+        data[key] += things
+    return Game(parse(data))
 
 
 def change(kind: str, target: str = "", **extra) -> dict:
@@ -107,6 +115,26 @@ class EngineTest(unittest.TestCase):
         [result] = game.play([change("take", "candle")])
         self.assertTrue(result.accepted)
         self.assertEqual(game.places["candle"], "player")
+
+    def test_an_object_named_like_a_clue_can_be_taken(self):
+        game = game_with(items=[{"name": "silver music box", "room": "hall"}])
+        game.play([change("take", "silver_music_box")])
+        self.assertEqual(game.places["silver_music_box"], "player")
+        game.play([change("move", "bedroom")])
+        [result] = game.play([change("take", "music box")])
+        self.assertEqual((result.kind, result.accepted), ("clue", True))
+
+    def test_an_id_wins_over_another_thing_with_that_name(self):
+        game = game_with(items=[{"id": "toy_box", "name": "music box", "room": "hall"}])
+        game.play([change("move", "bedroom")])
+        [result] = game.play([change("take", "music_box")])
+        self.assertEqual((result.kind, result.accepted), ("clue", True))
+
+    def test_a_creature_named_after_a_room_cannot_reach_into_it(self):
+        game = game_with(creatures=[{"name": "Kitchen Monster", "room": "hall"}])
+        [result] = game.play([change("take", "rusty key")])
+        self.assertEqual(result.reason, "not_here")
+        self.assertEqual(game.carried(), [])
 
     def test_courage_moves_one_step_per_turn(self):
         game = new_game()

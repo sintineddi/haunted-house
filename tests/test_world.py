@@ -1,9 +1,11 @@
 import copy
 import json
+import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from haunted.world import WorldError, load, parse, slug
+from haunted.world import WorldError, load, parse, save, slug
 
 SAMPLES = Path(__file__).resolve().parent.parent / "worlds"
 
@@ -81,6 +83,15 @@ class WorldTest(unittest.TestCase):
         data["creatures"][0]["id"] = "ghost"
         with self.assertRaisesRegex(WorldError, "reserved"):
             parse(data)
+
+    def test_saves_at_the_same_time_do_not_clash(self):
+        world = load(SAMPLES / "sample-en.json")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "world.json"
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                list(pool.map(lambda _: save(world, path), range(200)))
+            self.assertEqual(load(path).title, world.title)
+            self.assertEqual([file.name for file in Path(folder).iterdir()], ["world.json"])
 
 
 if __name__ == "__main__":

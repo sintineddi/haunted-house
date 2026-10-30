@@ -96,6 +96,7 @@ class House:
 
 class Handler(BaseHTTPRequestHandler):
     house: House
+    listening = True
 
     def log_message(self, format, *args):
         pass
@@ -180,7 +181,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_line({"type": "error", "error": str(error)})
                 finally:
                     self.house.keep(game)
-        except (BrokenPipeError, ConnectionResetError):
+        except ConnectionError:
             pass
         finally:
             lock.release()
@@ -229,8 +230,13 @@ class Handler(BaseHTTPRequestHandler):
         return value
 
     def send_line(self, event: dict):
-        self.wfile.write((json.dumps(event, ensure_ascii=False) + "\n").encode())
-        self.wfile.flush()
+        if not self.listening:
+            return
+        try:
+            self.wfile.write((json.dumps(event, ensure_ascii=False) + "\n").encode())
+            self.wfile.flush()
+        except ConnectionError:
+            self.listening = False
 
     def send_json(self, value: dict, status: HTTPStatus = HTTPStatus.OK):
         body = json.dumps(value, ensure_ascii=False).encode()

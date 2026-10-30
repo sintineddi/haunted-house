@@ -484,7 +484,7 @@ function withFreshIds(world) {
     things.forEach((thing, index) => {
       const base = slug(thing.name) || `${prefix}_${index + 1}`;
       let id = base;
-      for (let n = 2; used.has(id); n += 1) id = `${base}_${n}`;
+      for (let n = 2; used.has(id); n += 1) id = slug(`${base.slice(0, 29 - String(n).length)}_${n}`);
       used.add(id);
       if (thing.id) renamed[thing.id] = id;
       thing.id = id;

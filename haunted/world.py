@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -110,7 +111,7 @@ def load(path: Path) -> World:
 
 def save(world: World, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
+    temporary = path.with_name(f"{path.stem}-{uuid.uuid4().hex}.tmp")
     temporary.write_text(json.dumps(world.as_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(path)
 

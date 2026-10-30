@@ -176,29 +176,31 @@ class Game:
         return done("move", room.name, note)
 
     def take(self, target: str) -> Result | None:
-        clue = self.find(self.world.clues, target)
-        if clue is not None:
-            return self.search(clue.id)
-        item = self.find(self.world.items, target)
-        if item is None:
-            creature = self.find(self.world.creatures, target)
-            if creature is not None:
-                return refused(
-                    "take",
-                    creature.name,
-                    "creature",
-                    f"The player tried to pick up {creature.name}, who does not fit in a pocket and does not agree.",
-                )
+        thing = self.find([*self.world.items, *self.world.clues], target)
+        if isinstance(thing, Clue):
+            return self.search(thing.id)
+        if isinstance(thing, Item):
+            return self.pick_up(thing)
+        creature = self.find(self.world.creatures, target)
+        if creature is not None:
             return refused(
                 "take",
-                target,
-                "unknown",
-                f"The player tried to take '{target}', but there is no such object in this house. They do not get it.",
+                creature.name,
+                "creature",
+                f"The player tried to pick up {creature.name}, who does not fit in a pocket and does not agree.",
             )
+        return refused(
+            "take",
+            target,
+            "unknown",
+            f"The player tried to take '{target}', but there is no such object in this house. They do not get it.",
+        )
+
+    def pick_up(self, item: Item) -> Result | None:
         place = self.places[item.id]
         if place == PLAYER:
             return None
-        holder = self.find(self.world.creatures, place)
+        holder = next((creature for creature in self.world.creatures if creature.id == place), None)
         if place != self.room and not (holder and holder.room == self.room):
             return refused(
                 "take", item.name, "not_here", f"The player looked for the {item.name}, but it is not in this room."
@@ -338,9 +340,12 @@ class Game:
         wanted = slug(target)
         if not wanted:
             return None
-        exact = next((thing for thing in things if wanted in (thing.id, slug(thing.name))), None)
-        if exact is not None:
-            return exact
+        by_id = next((thing for thing in things if thing.id == wanted), None)
+        if by_id is not None:
+            return by_id
+        by_name = next((thing for thing in things if slug(thing.name) == wanted), None)
+        if by_name is not None:
+            return by_name
         scored = [(overlap(words(target), words(thing.name) | words(thing.id)), thing) for thing in things]
         best = max((score for score, _ in scored), default=0)
         return next((thing for score, thing in scored if score == best), None) if best else None
