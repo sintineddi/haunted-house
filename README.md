@@ -102,7 +102,7 @@ rouillée est introuvable dans cette chambre, et la montre en argent n'est pas n
 Three games with `gemma4:26b`, 42 turns: one won in English (14 turns), one won in French (21 turns), one lost in French when courage ran out (7 turns).
 
 - Gemma proposed 56 changes. The engine refused 14 of them: a locked cellar (3), an object not in the pocket (3) or not in the room (2), an object that does not exist (2), a ghost that had not shown itself yet (1), and a search where nothing was hidden (3).
-- Twice, the engine accepted a clue and the story said the opposite (a wardrobe that "does not open at all" while the music box inside was already found). The check caught both and showed the clue under the story.
+- Twice, the engine accepted a clue that the story did not tell. Once the story even said the opposite: a wardrobe that "does not open at all" while the music box inside was already found. The check caught both and showed the clue under the story.
 - Median time to understand an action: 2.1 s (max 3.4 s). Median time to tell the story: 3.7 s (max 5.5 s).
 
 ## Tests
