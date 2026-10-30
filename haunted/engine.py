@@ -10,6 +10,7 @@ MAX_CHANGES = 4
 HINT_AFTER = 8
 KINDS = ("move", "take", "drop", "give", "use", "unlock", "clue", "courage", "help")
 GHOST_WORDS = {GHOST, "fantome"}
+DOOR_WORDS = {"door", "lock", "keyhole", "trapdoor", "porte", "serrure", "trappe"}
 STOP_WORDS = {
     "a",
     "an",
@@ -258,28 +259,31 @@ class Game:
         item = self.find(self.world.items, target)
         if item is None or self.places[item.id] != PLAYER:
             return self.not_carried("give", item.name if item else target)
-        if not self.means_ghost(to):
-            creature = self.find(self.creatures_here(), to) or self.find(self.world.creatures, to)
-            if creature is not None and creature.room == self.room:
-                self.places[item.id] = creature.id
-                return done(
-                    "give", item.name, f"The player gave the {item.name} to {creature.name}, who keeps it for now."
-                )
-            if creature is not None:
-                return refused(
-                    "give",
-                    item.name,
-                    "nobody",
-                    f"The player wanted to give the {item.name} to {creature.name}, who is not in this room.",
-                )
-            if not self.ghost_visible:
-                return refused(
-                    "give",
-                    item.name,
-                    "nobody",
-                    f"The player wanted to give the {item.name} to '{to}', but nobody by that name is here.",
-                )
+        creature = self.recipient(to)
+        if creature is not None and creature.room == self.room:
+            self.places[item.id] = creature.id
+            return done("give", item.name, f"The player gave the {item.name} to {creature.name}, who keeps it for now.")
+        if creature is not None:
+            return refused(
+                "give",
+                item.name,
+                "nobody",
+                f"The player wanted to give the {item.name} to {creature.name}, who is not in this room.",
+            )
+        if not self.means_ghost(to) and not self.ghost_visible:
+            return refused(
+                "give",
+                item.name,
+                "nobody",
+                f"The player wanted to give the {item.name} to '{to}', but nobody by that name is here.",
+            )
         return self.give_ghost(item)
+
+    def recipient(self, to: str) -> Creature | None:
+        creature = self.exact(self.world.creatures, to)
+        if creature is not None or self.means_ghost(to):
+            return creature
+        return self.find(self.creatures_here(), to) or self.find(self.world.creatures, to)
 
     def means_ghost(self, to: str) -> bool:
         named = words(to)
@@ -331,7 +335,7 @@ class Game:
 
     def try_key(self, key: Item, doors: list[Room], to: str) -> Result | None:
         room = self.find(self.world.rooms, to)
-        if room is None and self.names_something(to):
+        if room is None and to and not overlap(words(to), DOOR_WORDS):
             return done("use", key.name, f"The player used the {key.name} on {to}.")
         if room is not None and room not in doors:
             return refused(
@@ -346,10 +350,6 @@ class Game:
             return None
         self.unlocked.append(door.id)
         return done("use", key.name, f"The player used the {key.name}: the door of the {door.name} is now unlocked.")
-
-    def names_something(self, to: str) -> bool:
-        things = [*self.world.creatures, *self.world.items, *self.world.clues]
-        return self.means_ghost(to) or self.find(things, to) is not None
 
     def unlock(self, target: str) -> Result | None:
         room = self.find(self.world.rooms, target)
@@ -455,16 +455,20 @@ class Game:
         return refused(kind, name, "not_carried", f"The player wanted to {kind} the {name}, but they do not have it.")
 
     @staticmethod
-    def find(things: list, target: str):
+    def exact(things: list, target: str):
         wanted = slug(target)
         if not wanted:
             return None
         by_id = next((thing for thing in things if thing.id == wanted), None)
         if by_id is not None:
             return by_id
-        by_name = next((thing for thing in things if slug(thing.name) == wanted), None)
-        if by_name is not None:
-            return by_name
+        return next((thing for thing in things if slug(thing.name) == wanted), None)
+
+    @staticmethod
+    def find(things: list, target: str):
+        found = Game.exact(things, target)
+        if found is not None or not slug(target):
+            return found
         scored = [(overlap(words(target), words(thing.name) | words(thing.id)), thing) for thing in things]
         best = max((score for score, _ in scored), default=0)
         return next((thing for score, thing in scored if score == best), None) if best else None

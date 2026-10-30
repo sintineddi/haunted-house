@@ -12,10 +12,12 @@ def new_game(language: str = "en") -> Game:
     return Game(load(SAMPLES / f"sample-{language}.json"))
 
 
-def game_with(**extra: list) -> Game:
+def game_with(ghost_name: str = "", **extra: list) -> Game:
     data = json.loads((SAMPLES / "sample-en.json").read_text(encoding="utf-8"))
     for key, things in extra.items():
         data[key] += things
+    if ghost_name:
+        data["ghost"]["name"] = ghost_name
     return Game(parse(data))
 
 
@@ -138,6 +140,18 @@ class EngineTest(unittest.TestCase):
         game.play([change("give", "pocket_watch", to="the ghost")])
         self.assertEqual(game.ending, "won")
 
+    def test_a_creature_named_like_part_of_the_ghost_keeps_its_gifts(self):
+        captain = {"ghost_name": "Captain Barnaby", "creatures": [{"name": "Captain", "room": "attic"}]}
+        game = game_with(**captain)
+        game.play([change("take", "candle"), change("move", "attic")])
+        game.play([change("give", "candle", to="captain")])
+        self.assertEqual(game.places["candle"], "captain")
+        game = ready_to_win(game_with(**captain))
+        game.play([change("give", "pocket_watch", to="Captain")])
+        self.assertEqual((game.places["pocket_watch"], game.ending), ("captain", ""))
+        game.play([change("take", "pocket_watch"), change("give", "pocket_watch", to="Barnaby")])
+        self.assertEqual(game.ending, "won")
+
     def test_looking_for_an_object_where_it_lies_picks_it_up(self):
         game = new_game()
         game.play([change("move", "kitchen"), change("take", "rusty_key"), change("move", "cellar")])
@@ -167,12 +181,15 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(game.unlocked, ["cellar"])
         self.assertEqual(game.play([change("use", "rusty_key")]), [])
 
-    def test_a_key_used_on_a_creature_opens_nothing(self):
+    def test_a_key_used_on_something_else_opens_nothing(self):
         game = new_game()
         game.play([change("move", "kitchen"), change("take", "rusty_key")])
-        [result] = game.play([change("use", "rusty_key", to="soup_monster")])
-        self.assertTrue(result.accepted)
+        for target in ("soup_monster", "the window"):
+            [result] = game.play([change("use", "rusty_key", to=target)])
+            self.assertTrue(result.accepted)
         self.assertEqual(game.unlocked, [])
+        game.play([change("use", "rusty_key", to="the lock")])
+        self.assertEqual(game.unlocked, ["cellar"])
 
     def test_help_points_to_the_next_step(self):
         game = new_game()
