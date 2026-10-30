@@ -1,0 +1,9 @@
+[project]
+name = "haunted-house"
+version = "0.1.0"
+description = "A haunted house a child designs, with Gemma 4 as the Game Master and Python keeping the rules."
+requires-python = ">=3.9"
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"

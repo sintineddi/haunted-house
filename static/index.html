@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Haunted House</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1 id="title">The Haunted House</h1>
+    <nav>
+      <button id="to-design" type="button">✏️ <span data-t="design">Design the house</span></button>
+      <button id="new-game" type="button">🎲 <span data-t="new_game">New game</span></button>
+    </nav>
+  </header>
+
+  <main id="play">
+    <section class="side">
+      <div class="house">
+        <div class="roof"><span class="moon">🌕</span></div>
+        <div id="rooms" class="rooms"></div>
+      </div>
+      <dl class="panel">
+        <dt data-t="courage">Courage</dt><dd id="courage"></dd>
+        <dt data-t="pocket">Pocket</dt><dd id="pocket"></dd>
+        <dt data-t="here">Here</dt><dd id="here"></dd>
+        <dt data-t="clues_found">Clues</dt><dd id="clues"></dd>
+      </dl>
+    </section>
+    <section class="story">
+      <div id="log" aria-live="polite"></div>
+      <div id="ending" class="ending" hidden>
+        <p id="ending-text"></p>
+        <button id="play-again" type="button" data-t="play_again">Play again</button>
+      </div>
+      <form id="say">
+        <input id="action" autocomplete="off" maxlength="300" placeholder="What do you do?">
+        <button type="submit" aria-label="Go">➜</button>
+      </form>
+    </section>
+  </main>
+
+  <main id="design" hidden>
+    <form id="world-form"></form>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

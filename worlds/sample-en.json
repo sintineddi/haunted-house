@@ -1,0 +1,40 @@
+{
+  "title": "The Haunted House",
+  "language": "en",
+  "start": "hall",
+  "ghost": {
+    "name": "Barnaby",
+    "room": "attic",
+    "wants": "pocket_watch",
+    "who": "A clockmaker who lived in this house a hundred years ago.",
+    "personality": "Grumpy on the outside, very polite on the inside. Pretends to be scary, but blushes when someone is kind to him.",
+    "fear": "vacuum cleaners",
+    "shows_after": 2
+  },
+  "rooms": [
+    {"id": "hall", "name": "Hall", "emoji": "🚪", "look": "A dusty entrance hall. A grandfather clock ticks backwards and the stairs creak by themselves."},
+    {"id": "attic", "name": "Attic", "emoji": "🕸️", "look": "A low attic under the roof, full of trunks, cobwebs and moonlight."},
+    {"id": "bedroom", "name": "Bedroom", "emoji": "🛏️", "look": "A bedroom with a huge bed, dusty curtains and a wardrobe that sighs."},
+    {"id": "library", "name": "Library", "emoji": "📚", "look": "Shelves up to the ceiling. Some books whisper when you walk past."},
+    {"id": "kitchen", "name": "Kitchen", "emoji": "🎃", "look": "A big old kitchen that smells of pumpkin soup, with jam jars everywhere."},
+    {"id": "cellar", "name": "Cellar", "emoji": "🕯️", "look": "A cold cellar under the kitchen, with rows of old jam jars and a workbench.", "locked_by": "rusty_key"}
+  ],
+  "items": [
+    {"id": "rusty_key", "name": "rusty key", "emoji": "🗝️", "room": "kitchen", "about": "An old key with a pumpkin-shaped handle."},
+    {"id": "pocket_watch", "name": "silver pocket watch", "emoji": "⌚", "room": "cellar", "about": "It stopped at midnight. Engraved on the back: B."},
+    {"id": "candle", "name": "candle that never goes out", "emoji": "🕯️", "room": "hall", "about": "Its flame turns blue when a ghost is near."},
+    {"id": "whistle", "name": "bat whistle", "emoji": "🎶", "room": "library", "about": "When you blow it, bats start dancing."},
+    {"id": "cookie", "name": "courage cookie", "emoji": "🍪", "room": "bedroom", "about": "One bite and you feel as brave as a lion."}
+  ],
+  "clues": [
+    {"id": "photograph", "name": "old photograph", "emoji": "🖼️", "room": "attic", "reveals": "A man with a big moustache holds a silver pocket watch in front of this house. On the back: Barnaby, clockmaker, 1924."},
+    {"id": "diary_page", "name": "torn diary page", "emoji": "📜", "room": "library", "reveals": "\"I hid my watch where the jam jars sleep, so nobody could steal it. Now I can't remember where!\""},
+    {"id": "music_box", "name": "music box", "emoji": "🎵", "room": "bedroom", "reveals": "It ticks like a clock. Inside, a note: Barnaby cannot rest until his watch ticks again."},
+    {"id": "inscription", "name": "scratched inscription", "emoji": "✍️", "room": "cellar", "reveals": "Scratched into the workbench: \"Every night at midnight I look for it. B.\""}
+  ],
+  "creatures": [
+    {"id": "rat", "name": "Sir Squeaks, a very suspicious rat", "emoji": "🐀", "room": "attic", "personality": "Suspicious of everyone. Knows every secret of the house but only talks in exchange for something."},
+    {"id": "spider", "name": "Penny, a spider afraid of the dark", "emoji": "🕷️", "room": "bedroom", "personality": "Shy and kind. Afraid of the dark, she would love a light."},
+    {"id": "soup_monster", "name": "the Soup Monster", "emoji": "🍲", "room": "kitchen", "personality": "A big monster made of pumpkin soup. Looks scary, but only wants someone to taste his soup and say it is delicious."}
+  ]
+}

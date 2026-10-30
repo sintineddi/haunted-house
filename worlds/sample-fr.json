@@ -1,0 +1,40 @@
+{
+  "title": "La maison hantée",
+  "language": "fr",
+  "start": "hall",
+  "ghost": {
+    "name": "Barnabé",
+    "room": "grenier",
+    "wants": "montre_a_gousset",
+    "who": "Un horloger qui vivait dans cette maison il y a cent ans.",
+    "personality": "Grognon en apparence, très poli au fond. Il fait semblant de faire peur, mais rougit quand on est gentil avec lui.",
+    "fear": "les aspirateurs",
+    "shows_after": 2
+  },
+  "rooms": [
+    {"id": "hall", "name": "Hall", "emoji": "🚪", "look": "Un hall poussiéreux. Une grande horloge tourne à l'envers et l'escalier grince tout seul."},
+    {"id": "grenier", "name": "Grenier", "emoji": "🕸️", "look": "Un grenier bas sous le toit, plein de malles, de toiles d'araignée et de clair de lune."},
+    {"id": "chambre", "name": "Chambre", "emoji": "🛏️", "look": "Une chambre avec un lit immense, des rideaux poussiéreux et une armoire qui soupire."},
+    {"id": "bibliotheque", "name": "Bibliothèque", "emoji": "📚", "look": "Des étagères jusqu'au plafond. Certains livres chuchotent quand on passe."},
+    {"id": "cuisine", "name": "Cuisine", "emoji": "🎃", "look": "Une grande cuisine qui sent la soupe au potiron, avec des pots de confiture partout."},
+    {"id": "cave", "name": "Cave", "emoji": "🕯️", "look": "Une cave froide sous la cuisine, avec des rangées de vieux pots de confiture et un établi.", "locked_by": "cle_rouillee"}
+  ],
+  "items": [
+    {"id": "cle_rouillee", "name": "clé rouillée", "emoji": "🗝️", "room": "cuisine", "about": "Une vieille clé avec une poignée en forme de citrouille."},
+    {"id": "montre_a_gousset", "name": "montre à gousset en argent", "emoji": "⌚", "room": "cave", "about": "Elle s'est arrêtée à minuit. Gravé au dos : B."},
+    {"id": "bougie", "name": "bougie qui ne s'éteint jamais", "emoji": "🕯️", "room": "hall", "about": "Sa flamme devient bleue quand un fantôme est proche."},
+    {"id": "sifflet", "name": "sifflet à chauves-souris", "emoji": "🎶", "room": "bibliotheque", "about": "Quand on souffle dedans, les chauves-souris se mettent à danser."},
+    {"id": "biscuit", "name": "biscuit du courage", "emoji": "🍪", "room": "chambre", "about": "Une bouchée et on se sent brave comme un lion."}
+  ],
+  "clues": [
+    {"id": "photographie", "name": "vieille photographie", "emoji": "🖼️", "room": "grenier", "reveals": "Un homme à grosse moustache tient une montre à gousset en argent devant cette maison. Au dos : Barnabé, horloger, 1924."},
+    {"id": "page_de_journal", "name": "page de journal déchirée", "emoji": "📜", "room": "bibliotheque", "reveals": "« J'ai caché ma montre là où dorment les pots de confiture, pour que personne ne la vole. Et maintenant je ne sais plus où ! »"},
+    {"id": "boite_a_musique", "name": "boîte à musique", "emoji": "🎵", "room": "chambre", "reveals": "Elle fait tic-tac comme une horloge. Dedans, un mot : Barnabé ne pourra pas se reposer tant que sa montre ne fera pas tic-tac."},
+    {"id": "inscription", "name": "inscription gravée", "emoji": "✍️", "room": "cave", "reveals": "Gravé dans l'établi : « Chaque nuit à minuit, je la cherche. B. »"}
+  ],
+  "creatures": [
+    {"id": "rat", "name": "Messire Couic, un rat très méfiant", "emoji": "🐀", "room": "grenier", "personality": "Méfiant envers tout le monde. Connaît tous les secrets de la maison, mais ne parle qu'en échange de quelque chose."},
+    {"id": "araignee", "name": "Pénélope, une araignée qui a peur du noir", "emoji": "🕷️", "room": "chambre", "personality": "Timide et gentille. Elle a peur du noir et adorerait avoir de la lumière."},
+    {"id": "monstre_soupe", "name": "le Monstre de la Soupe", "emoji": "🍲", "room": "cuisine", "personality": "Un gros monstre fait de soupe au potiron. Il a l'air effrayant, mais il veut seulement qu'on goûte sa soupe et qu'on dise qu'elle est délicieuse."}
+  ]
+}
